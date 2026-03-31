@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food3D — Your 3D Collection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js - Use stable CDN versions -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        :root {
+            --primary: #00cec9;
+            --primary-glow: rgba(0, 206, 201, 0.3);
+            --bg: #0a0a0f;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+            --text-dim: #a0a0b0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 10, 15, 0.8);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            background: linear-gradient(45deg, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-back {
+            padding: 0.6rem 1.2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-back:hover { border-color: var(--primary); background: var(--border); }
+
+        .gallery-container { padding: 3rem 2rem; max-width: 1200px; margin: 0 auto; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .thumb-box {
+            height: 200px;
+            background: #000;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .thumb-box img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; transition: 0.3s; }
+        .card:hover .thumb-box img { opacity: 1; transform: scale(1.05); }
+
+        .card-info { padding: 1.2rem; }
+        .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-meta { font-size: 0.75rem; color: var(--text-dim); display: flex; justify-content: space-between; }
+
+        #modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.95); z-index: 1000;
+            display: none; flex-direction: column;
+        }
+        #modal.active { display: flex; }
+        #modal-viewer { flex: 1; position: relative; }
+
+        .modal-header { padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .btn-close { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🍱 Food3D Library</h1>
+        <a href="/" class="btn-back">← Back to Generator</a>
+    </header>
+
+    <main class="gallery-container">
+        <div id="gallery-grid" class="grid"></div>
+        <div id="empty-msg" style="display:none; text-align:center; padding:5rem; color:var(--text-dim);">
+            <p>Your 3D library is empty. Generate some models first!</p>
+        </div>
+    </main>
+
+    <div id="modal">
+        <div class="modal-header">
+            <h2 id="modal-title">3D Preview</h2>
+            <button class="btn-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div id="modal-viewer"></div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('gallery-grid');
+        const emptyMsg = document.getElementById('empty-msg');
+        const modal = document.getElementById('modal');
+        const modalViewer = document.getElementById('modal-viewer');
+        const modalTitle = document.getElementById('modal-title');
+
+        async function loadGallery() {
+            try {
+                const res = await fetch('/jobs');
+                const data = await res.json();
+                const jobs = data.jobs || [];
+                const completed = jobs.filter(j => j.status === 'completed');
+
+                if (completed.length === 0) {
+                    emptyMsg.style.display = 'block';
+                    return;
+                }
+
+                completed.forEach(job => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.onclick = () => openModal(job.job_id, job.original_filename);
+                    
+                    const thumbUrl = `/output/${job.job_id}/preprocessed.png`;
+                    
+                    card.innerHTML = `
+                        <div class="thumb-box">
+                            <img src="${thumbUrl}" onerror="this.src='https://via.placeholder.com/400x300?text=3D+Model'">
+                            <div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px; font-size:0.7rem;">Click to View</div>
+                        </div>
+                        <div class="card-info">
+                            <div class="card-title">${job.original_filename || 'Dish'}</div>
+                            <div class="card-meta">
+                                <span>ID: ${job.job_id}</span>
+                                <span>${job.created_at ? new Date(job.created_at).toLocaleDateString() : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        let scene, camera, renderer, controls, currentModel;
+
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0f);
+            
+            camera = new THREE.PerspectiveCamera(45, modalViewer.clientWidth / modalViewer.clientHeight, 0.1, 1000);
+            camera.position.set(2, 2, 2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(modalViewer.clientWidth, modalViewer.clientHeight);
+            modalViewer.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+            const dl = new THREE.DirectionalLight(0xffffff, 2.0);
+            dl.position.set(5, 10, 5);
+            scene.add(dl);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        window.openModal = (id, name) => {
+            modal.classList.add('active');
+            modalTitle.textContent = name || '3D Product';
+            if (!renderer) init3D();
+            
+            if (currentModel) scene.remove(currentModel);
+            
+            const loader = new THREE.GLTFLoader();
+            loader.load(`/model/${id}`, (gltf) => {
+                currentModel = gltf.scene;
+                currentModel.traverse(n => { if(n.isMesh) n.material.vertexColors = true; });
+                
+                const box = new THREE.Box3().setFromObject(currentModel);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                const scale = 2.0 / Math.max(size.x, size.y, size.z);
+                
+                currentModel.scale.setScalar(scale);
+                currentModel.position.set(-center.x*scale, (-center.y*scale) + (size.y*scale/2), -center.z*scale);
+                scene.add(currentModel);
+                controls.target.set(0, size.y*scale/2, 0);
+            });
+        };
+
+        window.closeModal = () => modal.classList.remove('active');
+
+        window.addEventListener('resize', () => {
+            if (renderer) {
+                camera.aspect = modalViewer.clientWidth / modalViewer.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(modalViewer.clientWidth, modalViewer.clientHeight);
+            }
+        });
+
+        loadGallery();
+    </script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Creator | Aura Cafe AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        .creator-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 5%;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 4rem;
+        }
+
+        .upload-zone {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .drop-area {
+            height: 400px;
+            border: 2px dashed var(--glass-border);
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            transition: 0.3s;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.02);
+            position: relative;
+        }
+
+        .drop-area:hover, .drop-area.active {
+            border-color: var(--accent);
+            background: rgba(212, 163, 115, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .preview-pane {
+            height: 600px;
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #generate-btn {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .scanning {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background: linear-gradient(transparent, var(--accent), transparent);
+            opacity: 0.5;
+            animation: scan 2s infinite ease-in-out;
+            pointer-events: none;
+            display: none;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; height: 5px; }
+            50% { top: 50%; height: 30px; opacity: 1; }
+            100% { top: 100%; height: 5px; }
+        }
+
+        .hidden { display: none; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .step-label { color: var(--accent); font-weight: 600; margin-bottom: 0.5rem; display: block; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Local File Warning -->
+        <div id="local-warning" class="glass" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:9999; padding:15px 30px; border:2px solid #ff4d4d; color:#ff4d4d; text-align:center;">
+            <strong>⚠️ SECURITY ALERT:</strong> You are opening this via <code>file://</code>.<br>
+            AI Processing & 3D Models will NOT load. Please use <b>http://localhost:8000</b>.
+        </div>
+
+        <header style="height: auto;">
+            <nav class="glass">
+                <div class="logo">Aura <span>Studio</span></div>
+                <div class="nav-links">
+                    <a href="index.html">Menu</a>
+                    <a href="#" class="active">Creator</a>
+                </div>
+            </nav>
+        </header>
+
+        <div class="creator-container">
+            <div class="upload-zone">
+                <div class="section-title">
+                    <span class="status-badge">AI Image-to-3D Engine</span>
+                    <h2>Magic 3D Scan</h2>
+                    <p>Upload a photo of your food, and our AI will generate a high-fidelity 3D model.</p>
+                </div>
+
+                <div class="drop-area glass" id="dropArea">
+                    <div class="upload-icon">✦</div>
+                    <span class="step-label">Step 1</span>
+                    <h3>Drag & Drop Photo</h3>
+                    <input type="file" id="fileInput" class="hidden" accept="image/*">
+                    <div id="img-preview-container" class="hidden" style="position:absolute; inset:0; border-radius:30px; overflow:hidden;">
+                         <img id="img-preview" src="" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                </div>
+
+                <button id="generate-btn" class="btn primary" disabled>Generate 3D Model</button>
+                
+                <!-- NEW: Save to Menu Section -->
+                <div id="save-section" class="hidden glass" style="margin-top: 1.5rem; padding: 1.5rem; border: 1px solid var(--accent-glow);">
+                    <h4 style="margin-bottom: 1rem; color: var(--accent);">Persistent Storage</h4>
+                    <input type="text" id="item-name-input" placeholder="Item Name (e.g. Special_Croissant)" style="width: 100%; padding: 0.8rem; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; margin-bottom: 1rem;">
+                    <button id="save-btn" class="btn primary" style="width: 100%;">Save to Menu</button>
+                </div>
+                
+                <p id="status-text" class="text-muted" style="text-align: center; margin-top: 1rem;"></p>
+            </div>
+
+            <div class="preview-pane glass">
+                <div class="scanning" id="scanner"></div>
+                <div id="no-model" style="height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--text-muted);">
+                    <p>Generated 3D Preview will appear here</p>
+                </div>
+                <model-viewer id="creator-viewer" 
+                    class="hidden"
+                    src="" 
+                    alt="Created Model" 
+                    camera-controls 
+                    auto-rotate
+                    shadow-intensity="1.5"
+                    shadow-softness="1"
+                    environment-image="neutral"
+                    exposure="1.2"
+                    style="width: 100%; height: 100%;">
+                </model-viewer>
+            </div>
+        </div>
+
+        <footer>
+            <p>Powered by Aura AI Engine. Integration available via Meshy/CSM API.</p>
+        </footer>
+    </div>
+
+    <script>
+        if (window.location.protocol === 'file:') {
+            document.getElementById('local-warning').style.display = 'block';
+        }
+
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const generateBtn = document.getElementById('generate-btn');
+        const imgPreviewContainer = document.getElementById('img-preview-container');
+        const imgPreview = document.getElementById('img-preview');
+        const scanner = document.getElementById('scanner');
+        const creatorViewer = document.getElementById('creator-viewer');
+        const noModel = document.getElementById('no-model');
+        const statusText = document.getElementById('status-text');
+
+        dropArea.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imgPreview.src = event.target.result;
+                    imgPreviewContainer.classList.remove('hidden');
+                    generateBtn.disabled = false;
+                    statusText.textContent = "Photo ready for processing.";
+                }
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // NEW: Save Logic
+        const saveSection = document.getElementById('save-section');
+        const itemNameInput = document.getElementById('item-name-input');
+        const saveBtn = document.getElementById('save-btn');
+
+        saveBtn.onclick = async () => {
+            const name = itemNameInput.value.trim() || 'new_item';
+            
+            try {
+                const res = await fetch('http://localhost:5000/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+
+                if (res.ok) {
+                    statusText.textContent = "✅ " + name + " saved to your permanent menu!";
+                    saveSection.classList.add('hidden');
+                } else {
+                    throw new Error("Failed to save");
+                }
+            } catch (err) {
+                statusText.textContent = "❌ Save Error: " + err.message;
+            }
+        };
+
+        generateBtn.onclick = async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            generateBtn.disabled = true;
+            statusText.textContent = "🚀 Shipping image to AI Engine...";
+            scanner.style.display = 'block';
+            noModel.classList.add('hidden');
+            creatorViewer.classList.add('hidden');
+            saveSection.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                // Connect to our local Python Backend Bridge
+                const response = await fetch('http://localhost:5000/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("AI Backend Error: " + response.statusText);
+
+                statusText.textContent = "✨ AI is sculpting your 3D mesh...";
+                
+                // Get the GLB blob
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                statusText.textContent = "🖌️ Applying textures and PBR materials...";
+                
+                setTimeout(() => {
+                    scanner.style.display = 'none';
+                    creatorViewer.classList.remove('hidden');
+                    creatorViewer.src = url;
+                    statusText.textContent = "Successfully generated! Check the 3D preview.";
+                    generateBtn.textContent = "Generate New";
+                    generateBtn.disabled = false;
+                    
+                    // Show the Save button
+                    saveSection.classList.remove('hidden');
+                }, 2000);
+
+            } catch (err) {
+                console.error(err);
+                scanner.style.display = 'none';
+                statusText.textContent = "❌ Error: " + err.message;
+                generateBtn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

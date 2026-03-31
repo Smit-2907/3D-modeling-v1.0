@@ -1,0 +1,37 @@
+[project]
+name = "food3d"
+version = "1.0.0"
+description = "Convert food images into AR-ready 3D models using TripoSR + Blender"
+readme = "README.md"
+requires-python = ">=3.10, <3.13"
+license = "MIT"
+
+dependencies = [
+    # FastAPI & Server
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "python-multipart>=0.0.18",
+
+    # TripoSR AI Model & Dependencies
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "omegaconf==2.3.0",
+    "Pillow>=10.1.0",
+    "einops>=0.7.0",
+    "transformers>=4.35.0",
+    "trimesh>=4.0.5",
+    "rembg",
+    "onnxruntime",
+    "huggingface-hub",
+    "imageio[ffmpeg]",
+    "scikit-image",
+    "scipy",
+    "xatlas>=0.0.11",
+
+    # Utilities
+    "numpy>=1.24.0",
+    "tqdm>=4.65.0",
+]
+
+[tool.uv]
+package = false

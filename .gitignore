@@ -1,0 +1,62 @@
+# ==============================================================================
+# Food3D — Professional AI Studio .gitignore
+# ==============================================================================
+
+# ─── Python Infrastructure ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ─── OS & IDE Junk ───
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+
+# ─── AI Model Weights (DO NOT COMMIT) ───
+# These are GBs of data!
+models/
+*.ckpt
+*.pth
+*.safetensors
+*.onnx
+*.weights
+*.bin
+*.model
+config.yaml
+
+# ─── Project Generation Storage ───
+# Keep your GitHub light!
+input/
+output/
+logs/
+temp_repo/
+*.obj
+*.glb
+*.gltf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mtl
+
+# ─── Environment ───
+.env
+.python-version
+uv.lock
+.pdm.toml
+.pdm-python
